@@ -6,7 +6,11 @@
 
 project ( lua C )
 cmake_minimum_required ( VERSION 2.8 )
-include ( cmake/dist.cmake )
+
+# ceph: something in here causes libgmock_main to be built as a shared
+# library, likely because it is modifying special variables. it doesn't really
+# need to be here, it mostly contains a bunch of install/cpack stuff.
+#include ( cmake/dist.cmake )
 
 ## CONFIGURATION
 # Default configuration (we assume POSIX by default)
@@ -17,8 +21,9 @@ set ( LUA_INIT "LUA_INIT" CACHE STRING "Environment variable for initial script.
 option ( LUA_USE_C89 "Use only C89 features." OFF )
 option ( LUA_USE_RELATIVE_LOADLIB "Use modified loadlib.c with support for relative paths on posix systems." ON )
 
-option ( LUA_COMPAT_5_1 "Enable backwards compatibility options with lua-5.1." ON )
-option ( LUA_COMPAT_5_2 "Enable backwards compatibility options with lua-5.2." ON )
+# Ceph: turn off compatibility with older Lua versions
+option ( LUA_COMPAT_5_1 "Enable backwards compatibility options with lua-5.1." OFF)
+option ( LUA_COMPAT_5_2 "Enable backwards compatibility options with lua-5.2." OFF)
 
 #2DO: LUAI_* and LUAL_* settings, for now defaults are used.
 set ( LUA_DIRSEP "/" )
@@ -60,12 +65,13 @@ else ( )
   endif ( )
 endif ( )
 
+# ceph: readline is only needed for the cli
 ## SETUP
 # Optional libraries
-find_package ( Readline )
-if ( READLINE_FOUND )
-  option ( LUA_USE_READLINE "Use readline in the Lua CLI." ON )
-endif ( )
+#find_package ( Readline )
+#if ( READLINE_FOUND )
+#  option ( LUA_USE_READLINE "Use readline in the Lua CLI." ON )
+#endif ( )
 
 # Setup needed variables and libraries
 if ( LUA_USE_POSIX )
@@ -111,31 +117,38 @@ endif ( )
 
 ## BUILD
 # Create lua library
-add_library ( liblua ${SRC_CORE} ${SRC_LIB} ${LUA_DLL_RC} )
+add_library ( liblua STATIC ${SRC_CORE} ${SRC_LIB} ${LUA_DLL_RC} )
 target_link_libraries ( liblua ${LIBS} )
+# Ceph: add includes path to liblua users
+target_include_directories(liblua PUBLIC src ${CMAKE_CURRENT_BINARY_DIR})
+# Ceph: only need the logical name
 set_target_properties ( liblua PROPERTIES OUTPUT_NAME lua CLEAN_DIRECT_OUTPUT 1 )
 if ( LUA_BUILD_AS_DLL )
   set_target_properties ( liblua PROPERTIES COMPILE_DEFINITIONS LUA_BUILD_AS_DLL )
 endif ()
 
-add_executable ( lua ${SRC_LUA} src/lua.rc )
-target_link_libraries ( lua liblua )
+# Ceph: don't build Lua executable
+#add_executable ( lua ${SRC_LUA} src/lua.rc )
+#target_link_libraries ( lua liblua )
 
-add_executable ( luac ${SRC_CORE} ${SRC_LIB} ${SRC_LUAC} src/luac.rc )
-target_link_libraries ( luac ${LIBS} )
+# Ceph: don't build Lua executable
+#add_executable ( luac ${SRC_CORE} ${SRC_LIB} ${SRC_LUAC} src/luac.rc )
+#target_link_libraries ( luac ${LIBS} )
 
+# Ceph: dont' build Lua executable
 # On windows a variant of the lua interpreter without console output needs to be built
-if ( LUA_BUILD_WLUA )
-  add_executable ( wlua WIN32 src/wmain.c ${SRC_LUA} src/lua.rc )
-  target_link_libraries ( wlua liblua )
-  install_executable ( wlua )
-endif ( )
+#if ( LUA_BUILD_WLUA )
+#  add_executable ( wlua WIN32 src/wmain.c ${SRC_LUA} src/lua.rc )
+#  target_link_libraries ( wlua liblua )
+#  install_executable ( wlua )
+#endif ( )
 
-install_executable ( lua luac )
-install_library ( liblua )
-install_data ( README.md )
+# Ceph: Lua is built as a convenience library; don't install anything
+#install_executable ( lua luac )
+#install_library ( liblua )
+#install_data ( README.md )
 #install_lua_module ( strict etc/strict.lua )
-install_header ( src/lua.h src/lualib.h src/lauxlib.h src/lua.hpp ${CMAKE_CURRENT_BINARY_DIR}/luaconf.h )
-install_doc ( doc/ )
-install_foo ( etc/ )
+#install_header ( src/lua.h src/lualib.h src/lauxlib.h src/lua.hpp ${CMAKE_CURRENT_BINARY_DIR}/luaconf.h )
+#install_doc ( doc/ )
+#install_foo ( etc/ )
 #install_test ( test/ )
